@@ -32,6 +32,26 @@ func (c Comments) TableName() string {
 	return "t_comments"
 }
 
+func SubString(str string, begin, length int) string {
+	fmt.Println("Substring =", str)
+	rs := []rune(str)
+	lth := len(rs)
+	fmt.Printf("begin=%d, end=%d, lth=%d\n", begin, length, lth)
+	if begin < 0 {
+		begin = 0
+	}
+	if begin >= lth {
+		begin = lth
+	}
+	end := begin + length
+
+	if end > lth {
+		end = lth
+	}
+	fmt.Printf("begin=%d, end=%d, lth=%d\n", begin, length, lth)
+	return string(rs[begin:end])
+}
+
 func QueryEscapeStr(s string) string {
 	str := strings.Replace(s, "<", "%3c", -1)
 	str = strings.Replace(str, ">", "%3e", -1)
@@ -42,8 +62,14 @@ func GetComments(engine *xorm.Engine) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		author := c.Query("author")
 		postId := c.Query("postId")
+		pid := c.Query("pid")
 		var list []Comments
-		engine.Where("author = ? and post_id = ?", author, postId).Find(&list)
+		session := engine.Where("author = ? and post_id = ? ", author, postId)
+		if pid != "" {
+			session.Where("pid = ? ", pid)
+		}
+		session.OrderBy("create_at desc")
+		session.Find(&list)
 		c.JSON(200, gin.H{
 			"content": list,
 			"size":    len(list),
@@ -81,8 +107,11 @@ func PostComments(engine *xorm.Engine) gin.HandlerFunc {
 			json.Level = parent.Level + 1
 			json.Pid = parent.Id
 		}
-
 		json.Name = QueryEscapeStr(json.Name)
+		n := strings.Count(json.Name, "") - 1
+		if n > 10 {
+			json.Name = SubString(json.Name, 0, 10)
+		}
 		json.Content = QueryEscapeStr(json.Content)
 		affected, err := engine.Insert(&json)
 		if err != nil {

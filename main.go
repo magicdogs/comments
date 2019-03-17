@@ -15,6 +15,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	engine.ShowSQL(true)
 	defer engine.Close()
 	r := gin.Default()
 	r.Use(utils.CORSMiddleware())
